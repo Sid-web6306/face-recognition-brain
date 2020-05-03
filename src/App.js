@@ -137,7 +137,15 @@ class App extends Component{
       route:'signin',
       isSignedin:false
     }
+}
+
+  componentDidMount(){
+    fetch('http://localhost:300/')
+    .then(response=>response.json())
+    .then(console.log)
   }
+
+
 
   calculateFacePosition = (data)=>{
     const clarifaiData=data.outputs[0].data.regions[0].region_info.bounding_box;
