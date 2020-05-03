@@ -135,17 +135,26 @@ class App extends Component{
       imageUrl:'',
       box:{},
       route:'signin',
-      isSignedin:false
+      isSignedin:false,
+      user:{
+        id:'',
+        username:'',
+        email:'',
+        entries:0,
+        joined:''
+      }
     }
 }
 
-  componentDidMount(){
-    fetch('http://localhost:300/')
-    .then(response=>response.json())
-    .then(console.log)
+  loadUser = (data) =>{
+    this.setState({user : {
+      id:data.id,
+      username:data.name,
+      email:data.email,
+      entries:data.entries,
+      joined:new Date()
+    }})
   }
-
-
 
   calculateFacePosition = (data)=>{
     const clarifaiData=data.outputs[0].data.regions[0].region_info.bounding_box;
@@ -164,26 +173,40 @@ class App extends Component{
   displayFaceBoxHandler = (box)=>{
     this.setState({box:box});
     // this.setState({box}) ANOTHER METHOD
-    console.log(box);
   }
 
   onInputChangeHandler=(event)=>{
     this.setState({input:event.target.value})
   }
   onSubmitHandler=()=>{
-    this.setState({imageUrl:this.state.input});
-    console.log('click');
-    app.models.predict(Clarifai.FACE_DETECT_MODEL, this.state.input)
-    .then(response=>{
-      this.displayFaceBoxHandler(this.calculateFacePosition(response))
-      console.log(response);
-    })
-    .catch(err=>console.log(err));
+    this.setState({imageUrl: this.state.input});
+    app.models
+      .predict(
+        Clarifai.FACE_DETECT_MODEL,
+        this.state.input)
+      .then(response => {
+        if (response) {
+          fetch('http://localhost:3000/image', {
+            method: 'put',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              id: this.state.user.id
+            })
+          })
+            .then(response => response.json())
+            .then(count => {
+              this.setState(Object.assign(this.state.user, { entries: count}))
+            })
+
+        }
+        this.displayFaceBoxHandler(this.calculateFacePosition(response))
+      })
+      .catch(err => console.log(err));
   }
 
 
   onrouteChangeHandler=(route)=>{
-    if(route==='signin'){
+    if(route==='signout'){
       this.setState({isSignedin:false})
     }
     else if(route==='home'){
@@ -202,15 +225,15 @@ class App extends Component{
         { this.state.route==='home'?
           <div>
             <Logo/>
-            <Rank/>
+            <Rank name ={this.state.user.username} entries={this.state.user.entries}/>
             <ImageLinkForm  onInputChange={this.onInputChangeHandler}
                             Submit={this.onSubmitHandler}
             />
             <FaceRecognition box ={this.state.box} ImageUrl={this.state.imageUrl}/>
           </div>:
           ( this.state.route==='signin'?
-            <SignIn onRouteChange={this.onrouteChangeHandler}/>:
-            <SignUp onRouteChange={this.onrouteChangeHandler}/>
+            <SignIn loadUser={this.loadUser} onRouteChange={this.onrouteChangeHandler}/>:
+            <SignUp loadUser = {this.loadUser} onRouteChange={this.onrouteChangeHandler}/>
           )
         }
         </div>
